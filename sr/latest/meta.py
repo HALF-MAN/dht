@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import gc
 
-from . import TCPUtils, blacklist
+from sr.latest import blacklist, TCPUtils
 import time
 from random import randint
 from hashlib import sha1
@@ -24,11 +24,11 @@ EXT_HANDSHAKE_ID = 0
 class TaskScheduler(Thread):
     def __init__(self, limit, numThread=4):
         Thread.__init__(self)
-        self.queue = queue()
+        self.queue = queue.Queue()
         self.setDaemon(True)
         self.limit = limit
         self.executor = ThreadPoolExecutor(numThread)
-        self.blackList = blacklist.BlackList(5*MINUTE, 50000)
+        self.blackList = blacklist.BlackList(5 * MINUTE, 50000)
     def put_task(self, taskInfo):
         #如果任务队列超出队列限制大小，默认丢弃该任务
         if queue.qsize() >= self.limit:
@@ -114,13 +114,13 @@ class TaskScheduler(Thread):
 
 
 class TaskInfo:
-    def __init__(self, address, infoHash, timeout=15):
+    def __init__(self, infoHash, address, timeout=15):
         self.address = address
         self.infoHash = infoHash
         self.timeOut = timeout
 def random_id():
     h = sha1()
-    h.update(entropy(20))
+    h.update(entropy(20).encode(encoding="utf-8"))
     return h.digest()
 def entropy(length):
     return "".join(chr(randint(0, 255)) for _ in range(length))
