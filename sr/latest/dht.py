@@ -93,6 +93,7 @@ class DHT(Thread):
             traceback.print_exc()
     def on_announce_peer_request(self, msg, address):
         try:
+            print("on_announce_peer_request")
             infohash = msg["a"]["info_hash"]
             token = msg["a"]["token"]
             nid = msg["a"]["id"]
@@ -152,10 +153,15 @@ class DHT(Thread):
         while True:
             try:
                 (data, address) = self.udp_server.recvfrom(65536)
+                # print(type(data))
+                data = str(data, encoding="ISO-8859-1")
+                data = bytes(data, encoding="ISO-8859-1")
+                # print('=====================')
                 msg = bdecode(data)
                 self.on_message(msg, address)
             except:
                 traceback.print_exc()
+                pass
 def timer(t, f):
     Timer(t, f).start()
 def make_query(tid, q, a):

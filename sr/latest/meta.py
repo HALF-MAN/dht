@@ -5,7 +5,7 @@ from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
 
 import gc
-
+from struct import pack, unpack
 from sr.latest import blacklist, TCPUtils
 import time
 from random import randint
@@ -42,10 +42,10 @@ class TaskScheduler(Thread):
                     # print("任务队列为空")
                     time.sleep(1)
                     continue
-                    # self.executor.submit(self.__download_metadata, (self.task_queue.get()))
-                    t = Thread(target=self.__download_metadata, args=(self.task_queue.get(),))
-                    t.setDaemon(True)
-                    t.start()
+                # self.executor.submit(self.__download_metadata, (self.task_queue.get()))
+                t = Thread(target=self.__download_metadata, args=(self.task_queue.get(),))
+                t.setDaemon(True)
+                t.start()
     def __download_metadata(self, taskInfo, timeout=20):
         try:
             if self.blackList.has(taskInfo.address):
@@ -83,7 +83,7 @@ class TaskScheduler(Thread):
         infohash = taskInfo.infoHash
         peer_id = random_id()
         msg = preheader() + infohash + peer_id
-        conn.send_msg(msg)
+        send_packet(conn, msg)
 
     def __on_handshake(self, packet, targetInfoHash):
         bt_header, packet = packet[:20], packet[20:]
@@ -98,14 +98,15 @@ class TaskScheduler(Thread):
         return True
 
     def __ext_handshake(self, conn):
-        msg = chr(BT_MSG_ID) + chr(EXT_HANDSHAKE_ID) + bencode({"m": {"ut_metadata": 1}}).decode("utf-8")
+        msg = str(BT_MSG_ID) + chr(EXT_HANDSHAKE_ID) + bencode({"m": {"ut_metadata": 1}}).decode("utf-8")
         msg = msg.encode("utf-8")
-        conn.send_msg(msg)
+        send_message(conn, msg)
 
     def __request_metadata(conn, ut_metadata, piece):
+        print("request_metadata")
         msg = chr(BT_MSG_ID) + ut_metadata + bencode({"msg_type": 0, "piece": piece}).decode("utf-8")
         msg = msg.encode("utf-8")
-        conn.send_msg(msg)
+        send_message(conn, msg)
     def __recv_all(self, conn, timeout=15):
         conn.setblocking(0)
         total_data = []
@@ -131,6 +132,12 @@ class TaskInfo:
         self.address = address
         self.infoHash = infoHash
         self.timeOut = timeout
+
+def send_packet(the_socket, msg):
+    the_socket.send(msg)
+def send_message(the_socket, msg):
+    msg_len = pack(">I", len(msg))
+    send_packet(the_socket, msg_len + msg)
 def random_id():
     h = sha1()
     h.update(entropy(20).encode(encoding="utf-8"))

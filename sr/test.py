@@ -59,12 +59,28 @@ class C(B):
 # print(som)
 # print(len(som.encode(encoding="utf-8")))
 
-
-from bencode3 import  bencode
-
-print(type(bencode("u")))
-l = (chr(21) + chr(34))+bencode("u").decode("utf-8")
-print(l)
+#
+from bencode import bencode, bdecode
+#
+# print(type(bencode("u")))
+# l = (chr(21) + chr(34))+bencode("u").decode("utf-8")
+# print(l)
 # print(l)
 # print(type(l))
 # print(type(chr(21)))
+
+a = "d1:ad2:id20:\na\x08\x11\x9dH\xe0\xb4\xd73;\xee\xe2m\xb38\xb2'#\x8a9:info_hash20:\x0e\xc8\x14\xd7\x9e\xb6A\x9a\xdc\x96FQ\x03i\xd5\xa5$Z\x0b\xf56:noseedi1ee1:q9:get_peers1:t2:\xe0\xd21:v4:LT\x01\x001:y1:qe"
+b= b"d1:ad2:id20:\na\x08\x11\x9dH\xe0\xb4\xd73;\xee\xe2m\xb38\xb2'#\x8a9:info_hash20:\x0e\xc8\x14\xd7\x9e\xb6A\x9a\xdc\x96FQ\x03i\xd5\xa5$Z\x0b\xf56:noseedi1ee1:q9:get_peers1:t2:\xe0\xd21:v4:LT\x01\x001:y1:qe"
+# a = bytes(a, encoding="ISO-8859-1")
+# print(b)
+# b = str(b, encoding="ISO-8859-1")
+# b = bytes(b, encoding="ISO-8859-1")
+# print(b)
+# msg = bdecode(a)
+# print(msg)
+
+y = bencode({"m": {"ut_metadata": 1}}).decode("utf-8")
+l = bin(27).replace("0b", "")
+print(bytes(l, encoding="utf-8"))
+print(l.encode("utf-8"))
+print(l)
