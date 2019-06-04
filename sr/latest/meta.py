@@ -13,6 +13,7 @@ from hashlib import sha1
 from bencode import bencode, bdecode
 import math
 import traceback
+import socket
 #下载info_metadata信息的工作线程
 #从任务队列里获取任务，再交给工作线程处理
 SECOND = 1
@@ -22,36 +23,46 @@ BT_PROTOCOL = "BitTorrent protocol"
 BT_MSG_ID = 20
 EXT_HANDSHAKE_ID = 0
 class TaskScheduler(Thread):
-    def __init__(self, limit, numThread=4):
+    def __init__(self, limit, numThread=100):
         Thread.__init__(self)
-        self.queue = queue.Queue()
+        self.task_queue = queue.Queue()
         self.setDaemon(True)
         self.limit = limit
         self.executor = ThreadPoolExecutor(numThread)
         self.blackList = blacklist.BlackList(5 * MINUTE, 50000)
     def put_task(self, taskInfo):
         #如果任务队列超出队列限制大小，默认丢弃该任务
-        if queue.qsize() >= self.limit:
+        if self.task_queue.qsize() >= self.limit:
             return
-        self.queue.put(taskInfo)
+        self.task_queue.put(taskInfo)
     def run(self):
         while True:
-            if self.queue.qsize() == 0:
-                continue
-            self.executor.submit(self.__download_metadata, (self.queue.get()))
-    def __download_metadata(self, taskInfo, timeout=15):
+            for i in range(0, 100):
+                if self.task_queue.qsize() == 0:
+                    # print("任务队列为空")
+                    time.sleep(1)
+                    continue
+                    # self.executor.submit(self.__download_metadata, (self.task_queue.get()))
+                    t = Thread(target=self.__download_metadata, args=(self.task_queue.get(),))
+                    t.setDaemon(True)
+                    t.start()
+    def __download_metadata(self, taskInfo, timeout=20):
         try:
             if self.blackList.has(taskInfo.address):
                 return
-            conn = TCPUtils.get_connection(taskInfo.address)
+            print("正在连接:", taskInfo.address)
+            # conn = TCPUtils.get_connection(taskInfo.address)
+            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
             self.__handshake(conn, taskInfo)
             resp = conn.recv()
-            if not self.__onHandshake(resp, taskInfo.infoHash):
+            if not self.__on_handshake(resp, taskInfo.infoHash):
                 try:
                     conn.close()
                 except:
-                    return
-            self.__ext_handshake(conn, taskInfo)
+                    pass
+                return
+            self.__ext_handshake(conn)
             resp = conn.recv()
             ut_metadata, metadata_size = get_ut_metadata(resp), get_metadata_size(resp)
             # request each piece of metadata
@@ -87,11 +98,13 @@ class TaskScheduler(Thread):
         return True
 
     def __ext_handshake(self, conn):
-        msg = chr(BT_MSG_ID) + chr(EXT_HANDSHAKE_ID) + bencode({"m": {"ut_metadata": 1}})
+        msg = chr(BT_MSG_ID) + chr(EXT_HANDSHAKE_ID) + bencode({"m": {"ut_metadata": 1}}).decode("utf-8")
+        msg = msg.encode("utf-8")
         conn.send_msg(msg)
 
     def __request_metadata(conn, ut_metadata, piece):
-        msg = chr(BT_MSG_ID) + ut_metadata + bencode({"msg_type": 0, "piece": piece})
+        msg = chr(BT_MSG_ID) + ut_metadata + bencode({"msg_type": 0, "piece": piece}).decode("utf-8")
+        msg = msg.encode("utf-8")
         conn.send_msg(msg)
     def __recv_all(self, conn, timeout=15):
         conn.setblocking(0)
@@ -127,11 +140,19 @@ def entropy(length):
 def preheader():
     bt_header = chr(len(BT_PROTOCOL)) + BT_PROTOCOL
     ext_bytes = "\x00\x00\x00\x00\x00\x10\x00\x00"
-    return bt_header + ext_bytes
+    return (bt_header + ext_bytes).encode(encoding="utf-8")
 def get_ut_metadata(packet):
-    pass
+    try:
+        ut_metadata = "_metadata"
+        index = packet.index(ut_metadata) + len(ut_metadata) + 1
+        return int(packet[index])
+    except Exception as e:
+        pass
 def get_metadata_size(packet):
-    pass
+    metadata_size = "metadata_size"
+    start = packet.index(metadata_size) + len(metadata_size) + 1
+    data = packet[start:]
+    return int(data[:data.index("e")])
 def parse_metadata(metadata, taskInfo):
     info = {}
     info['hash_id'] = taskInfo.infoHash.encode("hex").upper()

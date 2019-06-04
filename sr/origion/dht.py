@@ -174,7 +174,7 @@ def download_metadata(address, infohash, timeout=15):
 
         # handshake
         send_handshake(the_socket, infohash)
-        packet = the_socket.recv(4096)
+        packet, ip = the_socket.recv(4096)
 
         # handshake error
         if not check_handshake(packet, infohash):
@@ -186,7 +186,7 @@ def download_metadata(address, infohash, timeout=15):
 
         # ext handshake
         send_ext_handshake(the_socket)
-        packet = the_socket.recv(4096)
+        packet, ip = the_socket.recv(4096)
 
         # get ut_metadata and metadata_size
         ut_metadata, metadata_size = get_ut_metadata(packet), get_metadata_size(packet)
@@ -233,6 +233,7 @@ def download_metadata(address, infohash, timeout=15):
         gc.collect()
 
     except socket.timeout:
+        traceback.print_exc()
         try:
             the_socket.close()
         except:
@@ -355,6 +356,7 @@ class DHTServer(DHTClient):
                 try:
                     self.process_request_actions[msg["q"]](msg, address)
                 except KeyError:
+                    # print(msg["q"])
                     self.play_dead(msg, address)
         except KeyError:
             pass
@@ -379,7 +381,9 @@ class DHTServer(DHTClient):
             pass
 
     def on_announce_peer_request(self, msg, address):
+        print()
         try:
+            print msg
             infohash = msg["a"]["info_hash"]
             token = msg["a"]["token"]
             nid = msg["a"]["id"]
@@ -392,6 +396,7 @@ class DHTServer(DHTClient):
                     port = msg["a"]["port"]
                 self.master.log(infohash, (address[0], port))
         except Exception:
+            traceback.print_exc()
             print 'error'
             pass
         finally:
@@ -436,6 +441,7 @@ class Master(Thread):
             self.downloadMetadata()
 
     def log(self, infohash, address=None):
+        print address
         self.queue.put([address, infohash])
 
     def downloadMetadata(self):

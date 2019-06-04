@@ -17,10 +17,10 @@ class TCPConnection:
             self.socket.close()
 
     def recv(self):
-        return self.socket.recv(bufsize=4096)
+        return self.socket.recv(4096)
 
 
-def get_connection(address, timeout=15):
+def get_connection(address, timeout=50):
         return TCPConnection(address, timeout)
 
 

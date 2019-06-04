@@ -22,7 +22,7 @@ class BlackList:
         try:
             if len(self.ll) >= self.limit:
                 return
-            if addr not in self.cache[addr]:
+            if addr not in self.cache:
                 e = entry(addr, time.time())
                 self.ll.append(e)
                 self.cache[addr] = e
@@ -31,7 +31,7 @@ class BlackList:
     def has(self, addr):
         self.lock.acquire()
         try:
-            if self.cache[addr]:
+            if addr in self.cache:
                 e = self.cache[addr]
                 if time.time() - e.ctime < self.expiredAfter:
                     return True

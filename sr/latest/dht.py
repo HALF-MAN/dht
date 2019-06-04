@@ -98,10 +98,14 @@ class DHT(Thread):
             nid = msg["a"]["id"]
             tid = msg["t"]
             if token == infohash[:TID_LENGTH]:
-                if msg["a"]["implied_port"] and msg["a"]["implied_port"] != 0:
-                    port = msg["a"]["implied_port"]
-                else:
+                # if "implied_port" in msg["a"] and msg["a"]["implied_port"] != 0:
+                #     port = address[1]
+                # else:
+                #     port = msg["a"]["port"]
+                if "port" in msg["a"]:
                     port = msg["a"]["port"]
+                else:
+                    port = address[1]
                 self.task_scheduler.put_task(meta.TaskInfo(infohash, (address[0], port)))
         except:
             traceback.print_exc()
@@ -137,7 +141,8 @@ class DHT(Thread):
                 try:
                     self.process_request_actions[msg["q"].decode()](msg, address)
                 except:
-                    traceback.print_exc()
+                    # print(msg["q"])
+                    # traceback.print_exc()
                     self.play_dead(msg, address)
         except:
             traceback.print_exc()
@@ -146,7 +151,7 @@ class DHT(Thread):
         self.re_join_dht()
         while True:
             try:
-                data, address = self.udp_server.recv(65535)
+                (data, address) = self.udp_server.recvfrom(65536)
                 msg = bdecode(data)
                 self.on_message(msg, address)
             except:
