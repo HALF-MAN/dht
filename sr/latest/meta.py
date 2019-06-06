@@ -28,7 +28,7 @@ class TaskScheduler(Thread):
         self.task_queue = queue.Queue()
         self.setDaemon(True)
         self.limit = limit
-        self.executor = ThreadPoolExecutor(numThread)
+        # self.executor = ThreadPoolExecutor(numThread)
         self.blackList = blacklist.BlackList(5 * MINUTE, 50000)
     def put_task(self, taskInfo):
         #如果任务队列超出队列限制大小，默认丢弃该任务
@@ -53,17 +53,18 @@ class TaskScheduler(Thread):
             print("正在连接:", taskInfo.address)
             # conn = TCPUtils.get_connection(taskInfo.address)
             conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+            conn.settimeout(15)
+            conn.connect(taskInfo.address)
             self.__handshake(conn, taskInfo)
-            resp = conn.recv()
+            resp = conn.recv(4096)
             if not self.__on_handshake(resp, taskInfo.infoHash):
                 try:
                     conn.close()
                 except:
-                    pass
+                    return
                 return
             self.__ext_handshake(conn)
-            resp = conn.recv()
+            resp = conn.recv(4096)
             ut_metadata, metadata_size = get_ut_metadata(resp), get_metadata_size(resp)
             # request each piece of metadata
             metadata = []
