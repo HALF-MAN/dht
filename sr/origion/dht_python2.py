@@ -16,8 +16,10 @@ from threading import Timer, Thread
 from time import sleep
 from collections import deque
 from bencode import bencode, bdecode
-from queue import Queue
+from Queue import Queue
+import base64
 import json
+import urllib2
 import traceback
 import gc
 
@@ -36,12 +38,12 @@ EXT_HANDSHAKE_ID = 0
 
 
 def entropy(length):
-    return "".join(chr(randint(0, 255)) for _ in range(length))
+    return "".join(chr(randint(0, 255)) for _ in xrange(length))
 
 
 def random_id():
     h = sha1()
-    h.update(entropy(20).encode('utf-8'))
+    h.update(entropy(20))
     return h.digest()
 
 
@@ -188,7 +190,7 @@ def download_metadata(address, infohash, timeout=15):
 
         # get ut_metadata and metadata_size
         ut_metadata, metadata_size = get_ut_metadata(packet), get_metadata_size(packet)
-
+        # print 'ut_metadata_size: ', metadata_size
 
         # request each piece of metadata
         metadata = []
@@ -199,25 +201,25 @@ def download_metadata(address, infohash, timeout=15):
 
         metadata = "".join(metadata)
         info = {}
-        meta_data = bdecode(metadata, decoder=custom_decoder)
+        meta_data = bdecode(metadata)
         del metadata
-        info['hash_id'] = infohash.upper()
+        info['hash_id'] = infohash.encode("hex").upper()
 
-        if 'name' in meta_data:
+        if meta_data.has_key('name'):
             info["hash_name"] = meta_data["name"].strip()
         else:
             info["hash_name"] = ''
 
-        if 'length' in meta_data:
+        if meta_data.has_key('length'):
             info['hash_size'] = meta_data['length']
         else:
             info['hash_size'] = 0
 
-        if 'files' in meta_data:
+        if meta_data.has_key('files'):
             info['files'] = meta_data['files']
             for item in info['files']:
                 # print item
-                if 'length' in item:
+                if item.has_key('length'):
                     info['hash_size'] += item['length']
             info['files'] = json.dumps(info['files'], ensure_ascii=False)
             info['files'] = info['files'].replace("\"path\"", "\"p\"").replace("\"length\"", "\"l\"")
@@ -226,7 +228,7 @@ def download_metadata(address, infohash, timeout=15):
 
         info['a_ip'] = address[0]
         info['hash_size'] = str(info['hash_size'])
-        print(info, "\r\n\r\n")
+        print info, "\r\n\r\n"
         del info
         gc.collect()
 
@@ -240,22 +242,18 @@ def download_metadata(address, infohash, timeout=15):
             the_socket.close()
         except:
             return
-    except Exception:
+    except Exception, e:
         try:
-            traceback.print_exc()
+            # print e
+            # traceback.print_exc() 
             the_socket.close()
         except:
             return
     finally:
         the_socket.close()
         return
-def custom_decoder(field_type, value):
-    if field_type == "key":
-        return str(value, "ascii")
-    elif field_type == "value":
-        return bytes(value)
-    else:
-        raise Exception("'field_type' can pass only 'key' and 'value' values")
+
+
 
 class KNode(object):
     def __init__(self, nid, ip, port):
@@ -344,10 +342,9 @@ class DHTServer(DHTClient):
         while True:
             try:
                 (data, address) = self.ufd.recvfrom(65536)
-                msg = bdecode(data, decoder=custom_decoder)
+                msg = bdecode(data)
                 self.on_message(msg, address)
             except Exception:
-                traceback.print_exc()
                 pass
 
     def on_message(self, msg, address):
@@ -396,8 +393,7 @@ class DHTServer(DHTClient):
                     port = msg["a"]["port"]
                 self.master.log(infohash, (address[0], port))
         except Exception:
-            traceback.print_exc()
-            print('error')
+            print 'error'
             pass
         finally:
             self.ok(msg, address)
@@ -445,7 +441,7 @@ class Master(Thread):
 
     def downloadMetadata(self):
         # 100 threads for download metadata
-        for i in range(0, 100):
+        for i in xrange(0, 100):
             if self.queue.qsize() == 0:
                 sleep(1)
                 continue
@@ -463,6 +459,6 @@ if __name__ == "__main__":
     master.start()
 
     print('Receiving datagrams on :6882')
-    dht = DHTServer(master, "0.0.0.0", 6882, max_node_qsize=10)
+    dht = DHTServer(master, "0.0.0.0", 6881, max_node_qsize=10)
     dht.start()
     dht.auto_send_find_node()

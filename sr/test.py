@@ -79,8 +79,27 @@ b= b"d1:ad2:id20:\na\x08\x11\x9dH\xe0\xb4\xd73;\xee\xe2m\xb38\xb2'#\x8a9:info_ha
 # msg = bdecode(a)
 # print(msg)
 
-y = bencode({"m": {"ut_metadata": 1}}).decode("utf-8")
-l = bin(27).replace("0b", "")
-print(bytes(l, encoding="utf-8"))
-print(l.encode("utf-8"))
-print(l)
+# y = bencode({"m": {"ut_metadata": 1}}).decode("utf-8")
+# l = bin(27).replace("0b", "")
+# print(bytes(l, encoding="utf-8"))
+# print(l.encode("utf-8"))
+# print(l)
+import chardet
+import binascii
+k=b'd1:ad2:id20:\xdas\x8cH\xee\x9e\x1a\xb0\xbfL\xe8\xfc\xf6\x96{1\xd4\xca\xb8*9:info_hash20:\x8d\xad\xa6\xb2@\xae{\xc97\x9b/\xf9\xd7\xb0\x87\xd8\x80mi\xbee1:q9:get_peers1:t8:?\xce\x04\x04\x8e\x90\xac\xb01:y1:qe'
+def custom_decoder(field_type, value):
+    if field_type == "key":
+        return str(value, "ascii")
+    elif field_type == "value":
+        try:
+            return str(value, "utf-8")
+        except:
+            # return str(value, encoding="ISO-8859-1")
+            return bytes(value)
+    else:
+        raise Exception("'field_type' can pass only 'key' and 'value' values")
+print(bdecode(k ,decoder=custom_decoder))
+
+
+print(str(binascii.b2a_hex(b'\xdas\x8cH\xee\x9e\x1a\xb0\xbfL\xe8\xfc\xf6\x96{1\xd4\xca\xb8*'))[2:-1])
+
