@@ -213,7 +213,7 @@ def download_metadata(address, infohash, timeout=15):
         info = {}
         meta_data = bdecode(metadata, decoder=custom_decoder)
         del metadata
-        info['hash_id'] = str(binascii.b2a_hex(infohash))[2:-1]
+        info['hash_id'] = str(binascii.b2a_hex(infohash))[2:-1].upper()
 
         if 'name' in meta_data:
             info["hash_name"] = meta_data["name"].strip()
@@ -254,7 +254,7 @@ def download_metadata(address, infohash, timeout=15):
             return
     except Exception:
         try:
-            traceback.print_exc()
+            # traceback.print_exc()
             the_socket.close()
         except:
             return
@@ -377,7 +377,7 @@ class DHTServer(DHTClient):
                     except KeyError:
                         self.play_dead(msg, address)
         except KeyError:
-            traceback.print_exc()
+            # traceback.print_exc()
             pass
 
     def on_get_peers_request(self, msg, address):
@@ -413,7 +413,7 @@ class DHTServer(DHTClient):
                     port = msg["a"]["port"]
                 self.master.log(infohash, (address[0], port))
         except Exception:
-            traceback.print_exc()
+            # traceback.print_exc()
             print('error')
             pass
         finally:
