@@ -20,7 +20,7 @@ from queue import Queue
 import json
 import traceback
 import gc
-
+import binascii
 BOOTSTRAP_NODES = (
     ("router.bittorrent.com", 6881),
     ("dht.transmissionbt.com", 6881),
@@ -76,13 +76,14 @@ def send_message(the_socket, msg):
     msg_len = pack(">I", len(msg))
     send_packet(the_socket, msg_len + msg)
 
-
-def send_handshake(the_socket, infohash):
+def preheader():
     bt_header = chr(len(BT_PROTOCOL)) + BT_PROTOCOL
     ext_bytes = "\x00\x00\x00\x00\x00\x10\x00\x00"
-    peer_id = random_id()
-    packet = bt_header + ext_bytes + infohash + peer_id
+    return (bt_header + ext_bytes).encode(encoding="utf-8")
 
+def send_handshake(the_socket, infohash):
+    peer_id = random_id()
+    packet = preheader() + infohash + peer_id
     send_packet(the_socket, packet)
 
 
@@ -92,51 +93,59 @@ def check_handshake(packet, self_infohash):
         if bt_header_len != len(BT_PROTOCOL):
             return False
     except TypeError:
+        # traceback.print_exc()
         return False
 
     bt_header, packet = packet[:bt_header_len], packet[bt_header_len:]
-    if bt_header != BT_PROTOCOL:
+
+    if str(bt_header, encoding="utf-8") != BT_PROTOCOL:
+        print(bt_header, type(bt_header))
         return False
 
     packet = packet[8:]
     infohash = packet[:20]
     if infohash != self_infohash:
+        print(packet, "-----", infohash)
+        print(type(packet), "-----", type(infohash))
         return False
 
     return True
 
 
 def send_ext_handshake(the_socket):
-    msg = chr(BT_MSG_ID) + chr(EXT_HANDSHAKE_ID) + bencode({"m": {"ut_metadata": 1}})
+    msg = (chr(BT_MSG_ID) + chr(EXT_HANDSHAKE_ID)).encode("utf-8") + bencode({"m": {"ut_metadata": 1}})
     send_message(the_socket, msg)
 
 
 def request_metadata(the_socket, ut_metadata, piece):
     """bep_0009"""
-    msg = chr(BT_MSG_ID) + chr(ut_metadata) + bencode({"msg_type": 0, "piece": piece})
+    msg = (chr(BT_MSG_ID) + chr(ut_metadata)).encode("utf-8") + bencode({"msg_type": 0, "piece": piece})
     send_message(the_socket, msg)
 
 
 def get_ut_metadata(data):
     try:
-        ut_metadata = "_metadata"
-        index = data.index(ut_metadata) + len(ut_metadata) + 1
-        return int(data[index])
+        ut_metadata = "_metadata".encode("utf-8")
+        start = data.index(ut_metadata) + len(ut_metadata) + 1
+        end = data.index('e'.encode('utf-8'), start)
+        return int(data[start:end])
     except Exception as e:
         pass
 
 
 def get_metadata_size(data):
-    metadata_size = "metadata_size"
-    start = data.index(metadata_size) + len(metadata_size) + 1
-    data = data[start:]
-    return int(data[:data.index("e")])
+    try:
+        metadata_size = "metadata_size".encode("utf-8")
+        start = data.index(metadata_size) + len(metadata_size) + 1
+        data = data[start:]
+        return int(data[:data.index("e".encode("utf-8"))])
+    except:
+        pass
 
 
 def recvall(the_socket, timeout=15):
-    the_socket.setblocking(0)
-    total_data = []
-    data = ""
+    # the_socket.setblocking(0)
+    total_data = b""
     begin = time()
 
     while True:
@@ -148,11 +157,12 @@ def recvall(the_socket, timeout=15):
         try:
             data = the_socket.recv(1024)
             if data:
-                total_data.append(data)
+                total_data += data
                 begin = time()
         except Exception:
+            # traceback.print_exc()
             pass
-    return "".join(total_data)
+    return total_data
 
 
 def ip_black_list(ipaddress):
@@ -173,7 +183,6 @@ def download_metadata(address, infohash, timeout=15):
         # handshake
         send_handshake(the_socket, infohash)
         packet = the_socket.recv(4096)
-
         # handshake error
         if not check_handshake(packet, infohash):
             try:
@@ -185,23 +194,26 @@ def download_metadata(address, infohash, timeout=15):
         # ext handshake
         send_ext_handshake(the_socket)
         packet = the_socket.recv(4096)
-
         # get ut_metadata and metadata_size
         ut_metadata, metadata_size = get_ut_metadata(packet), get_metadata_size(packet)
-
-
+        if not ut_metadata or not metadata_size:
+            return
         # request each piece of metadata
-        metadata = []
+        metadata = b""
         for piece in range(int(math.ceil(metadata_size / (16.0 * 1024)))):
             request_metadata(the_socket, ut_metadata, piece)
             packet = recvall(the_socket, timeout)  # the_socket.recv(1024*17) #
-            metadata.append(packet[packet.index("ee") + 2:])
-
-        metadata = "".join(metadata)
+            try:
+                metadata += packet[packet.index("ee".encode("utf-8")) + 2:]
+            except:
+                pass
+        # metadata = "".join(metadata)
+        if len(metadata) <= 0:
+            return
         info = {}
         meta_data = bdecode(metadata, decoder=custom_decoder)
         del metadata
-        info['hash_id'] = infohash.upper()
+        info['hash_id'] = str(binascii.b2a_hex(infohash))[2:-1]
 
         if 'name' in meta_data:
             info["hash_name"] = meta_data["name"].strip()
@@ -253,7 +265,10 @@ def custom_decoder(field_type, value):
     if field_type == "key":
         return str(value, "ascii")
     elif field_type == "value":
-        return bytes(value)
+        try:
+            return str(value, 'utf-8')
+        except:
+            return bytes(value)
     else:
         raise Exception("'field_type' can pass only 'key' and 'value' values")
 
@@ -347,20 +362,22 @@ class DHTServer(DHTClient):
                 msg = bdecode(data, decoder=custom_decoder)
                 self.on_message(msg, address)
             except Exception:
-                traceback.print_exc()
+                # traceback.print_exc()
                 pass
 
     def on_message(self, msg, address):
         try:
-            if msg["y"] == "r":
-                if msg["r"].has_key("nodes"):
-                    self.process_find_node_response(msg, address)
-            elif msg["y"] == "q":
-                try:
-                    self.process_request_actions[msg["q"]](msg, address)
-                except KeyError:
-                    self.play_dead(msg, address)
+            if "y" in msg:
+                if msg["y"] == "r":
+                    if "nodes" in msg["r"]:
+                        self.process_find_node_response(msg, address)
+                elif msg["y"] == "q":
+                    try:
+                        self.process_request_actions[msg["q"]](msg, address)
+                    except KeyError:
+                        self.play_dead(msg, address)
         except KeyError:
+            traceback.print_exc()
             pass
 
     def on_get_peers_request(self, msg, address):
@@ -390,7 +407,7 @@ class DHTServer(DHTClient):
             tid = msg["t"]
 
             if infohash[:TOKEN_LENGTH] == token:
-                if msg["a"].has_key("implied_port ") and msg["a"]["implied_port "] != 0:
+                if "implied_port " in msg["a"] and msg["a"]["implied_port "] != 0:
                     port = address[1]
                 else:
                     port = msg["a"]["port"]
