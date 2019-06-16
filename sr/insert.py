@@ -13,7 +13,7 @@ sql3 = "SELECT * FROM meta_info \
 db = pymysql.connect("localhost", "root", "", "dht")
 cursor = db.cursor()
 test = '{"hash_id": "CB0196A8A64DD194E2D5871C1EDC3FA71BD35133", "hash_name": "Portable Microsoft Office 2007 SP2 Pro", "hash_size": "540097950", "files": [{"l": 539636234, "p": ["EQNEDT32.EXE"]}, {"l": 125823, "p": ["WINWORD.EXE"]}, {"l": 117337, "p": ["POWERPNT.EXE"]}, {"l": 111283, "p": ["MSACCESS.EXE"]}, {"l": 107273, "p": ["EXCEL.EXE"]}], "a_ip": "212.41.63.90"} '
-with open(r"C:\Users\leftking\Desktop\part3-2", "r", encoding="utf-8") as f:
+with open(r"C:\Users\leftking\Desktop\feek.out", "r", encoding="utf-8") as f:
     for line in f:
         try:
             dt = json.loads(line)
@@ -24,7 +24,7 @@ with open(r"C:\Users\leftking\Desktop\part3-2", "r", encoding="utf-8") as f:
             last_id = cursor.lastrowid
             if len(dt["files"]) > 0:
                 for file in dt["files"]:
-                    cursor.execute(sql2 % (last_id, "#>".join(file["p"]), file["l"], 0))
+                    cursor.execute(sql2 % (last_id, "#>".join(file["path"]), file["length"], 0))
             db.commit()
         except:
             db.rollback()

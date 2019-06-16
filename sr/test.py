@@ -110,8 +110,11 @@ import binascii
 # print(str(binascii.b2a_hex(h))[2:-1])
 # print(binascii.b2a_hex(h))
 import json
-with open(r"C:\Users\leftking\Desktop\out.txt", "r", encoding="utf-8") as f:
+with open(r"C:\Users\leftking\Desktop\fff.txt", "r", encoding="utf-8") as f:
     d = json.loads(f.readline())
-    print(d["hash_name"])
+    k = json.dumps(d)
+    # print(json.dumps(k))
     # with open(r"C:\Users\leftking\Desktop\out.txt", "w", encoding="utf-8") as out:
     #     out.write(json.dumps(d))
+r = ""
+print(json.dumps(r))

@@ -231,14 +231,14 @@ def download_metadata(address, infohash, timeout=15):
                 # print item
                 if 'length' in item:
                     info['hash_size'] += item['length']
-            info['files'] = json.dumps(info['files'], ensure_ascii=False)
-            info['files'] = info['files'].replace("\"path\"", "\"p\"").replace("\"length\"", "\"l\"")
+            # info['files'] = json.dumps(info['files'], ensure_ascii=False)
+            # info['files'] = info['files'].replace("\"path\"", "\"p\"").replace("\"length\"", "\"l\"")
         else:
             info['files'] = ''
 
         info['a_ip'] = address[0]
         info['hash_size'] = str(info['hash_size'])
-        print(info)
+        print(json.dumps(info, ensure_ascii=False))
         del info
         gc.collect()
 
