@@ -238,7 +238,7 @@ def download_metadata(address, infohash, timeout=15):
 
         info['a_ip'] = address[0]
         info['hash_size'] = str(info['hash_size'])
-        print(info, "\r\n\r\n")
+        print(info)
         del info
         gc.collect()
 
